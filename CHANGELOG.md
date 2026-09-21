@@ -12,6 +12,7 @@
 - 对话中可隐藏不常用的共享专家（浏览器本地偏好）(#589)
 
 ### 修复
+- iOS PWA 状态栏不再虚化遮挡内容：顶栏改为不透明、去掉 backdrop-filter；登录页与设置向导补 `safe-area-inset` 内边距（#874）
 - 知识库纯文本/Markdown/CSV 在 UTF-8 失败时回退 GB18030，避免 Windows GBK 文档被替换成乱码后入库
 - Dashboard 保存 Agent 运行参数后立即刷新当前 Agent 上下文，避免重置按钮和聊天页继续使用旧值
 - Dashboard `ask_user_question` 卡片不再在刷新/切会话后重复弹出：HITL pending 在恢复开始即标记完成，新回合会作废遗留提问，历史重注入按 `pending_id` 幂等去重 (#782)
