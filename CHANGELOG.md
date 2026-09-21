@@ -12,6 +12,7 @@
 - 对话中可隐藏不常用的共享专家（浏览器本地偏好）(#589)
 
 ### 修复
+- 登录页补充忘记密码说明：本机执行 `octop user passwd <用户名>`，或请管理员重置（#869）
 - iOS PWA 状态栏不再虚化遮挡内容：顶栏改为不透明、去掉 backdrop-filter；登录页与设置向导补 `safe-area-inset` 内边距（#874）
 - 知识库纯文本/Markdown/CSV 在 UTF-8 失败时回退 GB18030，避免 Windows GBK 文档被替换成乱码后入库
 - Dashboard 保存 Agent 运行参数后立即刷新当前 Agent 上下文，避免重置按钮和聊天页继续使用旧值
