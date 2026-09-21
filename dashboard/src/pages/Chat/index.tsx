@@ -15,7 +15,7 @@ import {
 import { Alert, Button, Tooltip } from "antd";
 import { message as antMessage } from "@/utils/antdMessage";
 import { showConfirmModal } from "../../utils/confirmModal";
-
+import PlanReadyCard from "./components/PlanReadyCard";
 import { useIsMobile } from "../../hooks/useIsMobile";
 import { useCurrentUser } from "../../hooks/useCurrentUser";
 import { userCan } from "../../utils/permissions";
@@ -337,6 +337,7 @@ function ChatPageInner() {
     historyRefreshing,
     historyHydrated,
     contextUsage,
+    pendingPlanPath,
     sendMessage,
     editAndResend,
     cancelStream,
@@ -472,6 +473,8 @@ function ChatPageInner() {
     reasoningMode,
     reasoningEffort,
     handleReasoningChange,
+    conversationMode,
+    handleConversationModeChange,
     handleConnectorsChange,
     handleKnowledgeBaseIdsChange,
   } = useChatComposerResources(
@@ -480,6 +483,7 @@ function ChatPageInner() {
     composerSession?.modelRef,
     composerSession?.reasoningMode,
     composerSession?.reasoningEffort,
+    composerSession?.conversationMode,
   );
 
   const { contextMaxTokens, contextUsedTokens } = useChatContextWindow(
@@ -587,6 +591,7 @@ function ChatPageInner() {
     selectedKnowledgeBaseIds,
     reasoningMode,
     reasoningEffort,
+    conversationMode,
     defaultModel: activeAgent?.default_model ?? null,
     sendMessage,
     createSession,
@@ -742,8 +747,14 @@ function ChatPageInner() {
       if (ev.action === "switch_agent" && ev.agent_id) {
         navigateToAgent(ev.agent_id);
       }
+      if (
+        ev.action === "set_conversation_mode" &&
+        (ev.mode === "ask" || ev.mode === "plan" || ev.mode === "craft")
+      ) {
+        handleConversationModeChange(ev.mode);
+      }
     });
-  }, [navigateToAgent]);
+  }, [navigateToAgent, handleConversationModeChange]);
 
   const handlePromptClick = useCallback(
     (text: string, options?: { prefill?: boolean }) => {
@@ -1454,6 +1465,28 @@ function ChatPageInner() {
                 </div>
               </div>
             ) : null}
+            {conversationMode === "plan" && pendingPlanPath ? (
+              <div className={styles.askQuestionDock}>
+                <div className={styles.askQuestionDockInner}>
+                  <PlanReadyCard
+                    path={pendingPlanPath}
+                    onExecute={() => {
+                      const path = pendingPlanPath;
+                      if (activeThreadId) {
+                        chatStore.setPendingPlanPath(activeThreadId, null);
+                      }
+                      handleConversationModeChange("craft", { persist: false });
+                      wrappedHandleSend(
+                        t("chat.conversationMode.executeUtterance", { path }),
+                        undefined,
+                        { conversationMode: "craft" },
+                      );
+                    }}
+                    onKeepEditing={() => chatInputRef.current?.focusComposer()}
+                  />
+                </div>
+              </div>
+            ) : null}
             <ChatInput
               ref={chatInputRef}
               onSend={wrappedHandleSend}
@@ -1476,6 +1509,8 @@ function ChatPageInner() {
               reasoningMode={reasoningMode}
               reasoningEffort={reasoningEffort}
               onReasoningChange={handleReasoningChange}
+              conversationMode={conversationMode}
+              onConversationModeChange={handleConversationModeChange}
               availableConnectors={isTeamChat ? undefined : chatConnectors}
               selectedConnectors={isTeamChat ? [] : selectedConnectors}
               onConnectorsChange={
