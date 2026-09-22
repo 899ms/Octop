@@ -36,6 +36,8 @@ import { useChatNavigation } from "./hooks/useChatNavigation";
 import { useChatSessionActions } from "./hooks/useChatSessionActions";
 
 import { useChatComposerResources } from "./hooks/useChatComposerResources";
+import type { HitlSessionPolicy } from "./utils/hitlSessionPolicy";
+import { mergeAllowTools } from "./utils/hitlSessionPolicy";
 import { useChatContextWindow } from "./hooks/useChatContextWindow";
 import { useBrowserToolDetection } from "./hooks/useBrowserToolDetection";
 import { useSkillRecordingWorkflow } from "./hooks/useSkillRecordingWorkflow";
@@ -84,7 +86,11 @@ import ChatTitleBar from "./components/ChatTitleBar";
 import TeamChatBadge from "./components/TeamChatBadge";
 import ChatComposerChrome from "./components/ChatComposerChrome";
 import AskQuestionCard from "./components/AskQuestionCard";
-import { findPendingAsk, hasPendingHitl } from "./utils/pendingHitl";
+import {
+  findPendingApproval,
+  findPendingAsk,
+  hasPendingHitl,
+} from "./utils/pendingHitl";
 import { isAgentChatReady } from "../../utils/agentError";
 import { useMemoryMaintenance } from "./hooks/useMemoryMaintenance";
 import MemoryMaintenanceBanner from "./components/MemoryMaintenanceBanner";
@@ -512,6 +518,8 @@ function ChatPageInner() {
     handleReasoningChange,
     conversationMode,
     handleConversationModeChange,
+    hitlPolicy,
+    handleHitlPolicyChange,
     handleConnectorsChange,
     handleKnowledgeBaseIdsChange,
   } = useChatComposerResources(
@@ -521,6 +529,7 @@ function ChatPageInner() {
     composerSession?.reasoningMode,
     composerSession?.reasoningEffort,
     composerSession?.conversationMode,
+    composerSession?.hitlPolicy,
   );
 
   const { contextMaxTokens, contextUsedTokens } = useChatContextWindow(
@@ -629,6 +638,7 @@ function ChatPageInner() {
     reasoningMode,
     reasoningEffort,
     conversationMode,
+    hitlPolicy,
     defaultModel: activeAgent?.default_model ?? null,
     sendMessage,
     createSession,
@@ -815,10 +825,38 @@ function ChatPageInner() {
   );
 
   const handleHitlDecision = useCallback(
-    (decisions: Array<{ type: string; message?: string }>) => {
+    (
+      decisions: Array<{ type: string; message?: string }>,
+      policy?: HitlSessionPolicy,
+    ) => {
+      if (policy) {
+        const next =
+          policy.mode === "allow_tools"
+            ? mergeAllowTools(hitlPolicy, policy.tools ?? [])
+            : policy;
+        handleHitlPolicyChange(next, { persist: false });
+        resumeHitl(decisions, activeThreadId ?? undefined, undefined, next);
+        return;
+      }
       resumeHitl(decisions, activeThreadId ?? undefined);
     },
-    [resumeHitl, activeThreadId],
+    [resumeHitl, activeThreadId, handleHitlPolicyChange, hitlPolicy],
+  );
+
+  const handleComposerHitlPolicyChange = useCallback(
+    (policy: HitlSessionPolicy) => {
+      const pending =
+        policy.mode === "allow_all" ? findPendingApproval(messages) : null;
+      handleHitlPolicyChange(policy, { persist: !pending });
+      if (!pending) return;
+      resumeHitl(
+        pending.actions.map(() => ({ type: "approve" })),
+        activeThreadId ?? undefined,
+        undefined,
+        policy,
+      );
+    },
+    [handleHitlPolicyChange, messages, resumeHitl, activeThreadId],
   );
 
   /** Close an ask pause without answering: ``respond`` is the only decision
@@ -1548,6 +1586,8 @@ function ChatPageInner() {
               onReasoningChange={handleReasoningChange}
               conversationMode={conversationMode}
               onConversationModeChange={handleConversationModeChange}
+              hitlPolicy={hitlPolicy}
+              onHitlPolicyChange={handleComposerHitlPolicyChange}
               availableConnectors={isTeamChat ? undefined : chatConnectors}
               selectedConnectors={isTeamChat ? [] : selectedConnectors}
               onConnectorsChange={
