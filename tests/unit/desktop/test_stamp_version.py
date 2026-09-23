@@ -115,3 +115,19 @@ def test_stamp_manifest_pep440_prerelease(tmp_path: Path) -> None:
     stamp_version.stamp_manifest(src, dest, "1.0.2b1")
     text = dest.read_text(encoding="utf-8")
     assert 'name="com.tencent.octop" version="1.0.2.0"' in text
+
+
+def test_write_nsis_defines_pep440(tmp_path: Path) -> None:
+    dest = tmp_path / "version_defines.nsh"
+    stamp_version.write_nsis_defines(dest, "1.0.2b1")
+    text = dest.read_text(encoding="utf-8")
+    assert '!define INFO_PRODUCTVERSION "1.0.2b1"' in text
+    assert '!define INFO_FILEVERSION "1.0.2.0"' in text
+
+
+def test_write_nsis_defines_dev(tmp_path: Path) -> None:
+    dest = tmp_path / "version_defines.nsh"
+    stamp_version.write_nsis_defines(dest, "dev")
+    text = dest.read_text(encoding="utf-8")
+    assert '!define INFO_PRODUCTVERSION "dev"' in text
+    assert '!define INFO_FILEVERSION "0.0.0.0"' in text

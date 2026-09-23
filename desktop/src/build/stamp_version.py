@@ -99,6 +99,24 @@ def stamp_manifest(src: Path, dest: Path, version: str) -> None:
     dest.write_text(updated, encoding="utf-8")
 
 
+def write_nsis_defines(path: Path, version: str) -> None:
+    """Write ``!define`` lines for NSIS (display + numeric VI*Version)."""
+    product = version.strip() or "dev"
+    filever = four_part_version(product)
+    if filever is None:
+        if product == "dev":
+            filever = "0.0.0.0"
+        else:
+            raise SystemExit(f"cannot map version to X.X.X.X: {product!r}")
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        # Included by project.nsi before wails_tools.nsh (!ifndef guards).
+        f'!define INFO_PRODUCTVERSION "{product}"\n'
+        f'!define INFO_FILEVERSION "{filever}"\n',
+        encoding="utf-8",
+    )
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest="cmd", required=True)
@@ -123,6 +141,13 @@ def main(argv: list[str] | None = None) -> int:
     )
     four_p.add_argument("version")
 
+    nsis_p = sub.add_parser(
+        "nsis-defines",
+        help="Write INFO_PRODUCTVERSION / INFO_FILEVERSION !define lines for project.nsi",
+    )
+    nsis_p.add_argument("version")
+    nsis_p.add_argument("path", type=Path)
+
     args = parser.parse_args(argv)
     if args.cmd == "plist":
         stamp_plist(args.path, args.version)
@@ -133,6 +158,8 @@ def main(argv: list[str] | None = None) -> int:
         if dotted is None:
             raise SystemExit(f"cannot map version to X.X.X.X: {args.version!r}")
         print(dotted)
+    elif args.cmd == "nsis-defines":
+        write_nsis_defines(args.path, args.version)
     else:
         stamp_manifest(args.src, args.dest, args.version)
     return 0
