@@ -9,9 +9,13 @@ Unicode true
 
 SetCompressor /SOLID lzma
 
-# The version information for this two must consist of 4 parts
-VIProductVersion "${INFO_PRODUCTVERSION}.0"
-VIFileVersion    "${INFO_PRODUCTVERSION}.0"
+# VI*Version must be numeric X.X.X.X. Display strings may be pep440 (e.g. 1.0.2b1).
+# Release packaging passes -DINFO_FILEVERSION from stamp_version.py four-part.
+!ifndef INFO_FILEVERSION
+    !define INFO_FILEVERSION "${INFO_PRODUCTVERSION}.0"
+!endif
+VIProductVersion "${INFO_FILEVERSION}"
+VIFileVersion    "${INFO_FILEVERSION}"
 
 VIAddVersionKey "CompanyName"     "${INFO_COMPANYNAME}"
 VIAddVersionKey "FileDescription" "${INFO_PRODUCTNAME} Installer"

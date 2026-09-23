@@ -82,14 +82,23 @@ tasks:
           New-Item -ItemType Directory -Force '{{.ROOT_DIR}}/{{.BIN_DIR}}' | Out-Null"
       - |
         {{if eq OS "windows"}}
-        makensis {{.VERSION_NSIS_DEFINE}}-DARG_WAILS_{{.ARG_FLAG}}_BINARY="{{.ROOT_DIR}}\{{.BIN_DIR}}\{{.APP_NAME}}.exe" -DINSTALLER_OUTFILE="{{.ROOT_DIR}}\{{.ARCHIVE}}" project.nsi
+        {{if and .VERSION (ne .VERSION "dev")}}
+        powershell -NoProfile -Command "$filever = (python '{{.ROOT_DIR}}/build/stamp_version.py' four-part '{{.VERSION}}').Trim(); if (-not $filever) { throw 'four-part version failed' }; & makensis \"-DINFO_PRODUCTVERSION={{.VERSION}}\" \"-DINFO_FILEVERSION=$filever\" \"-DARG_WAILS_{{.ARG_FLAG}}_BINARY={{.ROOT_DIR}}\{{.BIN_DIR}}\{{.APP_NAME}}.exe\" \"-DINSTALLER_OUTFILE={{.ROOT_DIR}}\{{.ARCHIVE}}\" project.nsi"
         {{else}}
-        makensis {{.VERSION_NSIS_DEFINE}}-DARG_WAILS_{{.ARG_FLAG}}_BINARY="{{.ROOT_DIR}}/{{.BIN_DIR}}/{{.APP_NAME}}.exe" -DINSTALLER_OUTFILE="{{.ROOT_DIR}}/{{.ARCHIVE}}" project.nsi
+        makensis -DARG_WAILS_{{.ARG_FLAG}}_BINARY="{{.ROOT_DIR}}\{{.BIN_DIR}}\{{.APP_NAME}}.exe" -DINSTALLER_OUTFILE="{{.ROOT_DIR}}\{{.ARCHIVE}}" project.nsi
+        {{end}}
+        {{else}}
+        {{if and .VERSION (ne .VERSION "dev")}}
+        FILEVER=$(python3 "{{.ROOT_DIR}}/build/stamp_version.py" four-part "{{.VERSION}}")
+        makensis -DINFO_PRODUCTVERSION="{{.VERSION}}" -DINFO_FILEVERSION="$FILEVER" -DARG_WAILS_{{.ARG_FLAG}}_BINARY="{{.ROOT_DIR}}/{{.BIN_DIR}}/{{.APP_NAME}}.exe" -DINSTALLER_OUTFILE="{{.ROOT_DIR}}/{{.ARCHIVE}}" project.nsi
+        {{else}}
+        makensis -DARG_WAILS_{{.ARG_FLAG}}_BINARY="{{.ROOT_DIR}}/{{.BIN_DIR}}/{{.APP_NAME}}.exe" -DINSTALLER_OUTFILE="{{.ROOT_DIR}}/{{.ARCHIVE}}" project.nsi
+        {{end}}
         {{end}}
     vars:
       ARCH: '{{.ARCH | default ARCH}}'
       VERSION: '{{.VERSION | default "dev"}}'
-      VERSION_NSIS_DEFINE: '{{if and .VERSION (ne .VERSION "dev")}}-DINFO_PRODUCTVERSION="{{.VERSION}}" {{end}}'
+      # Display / outfile / registry keep pep440; INFO_FILEVERSION is numeric X.X.X.X.
       ARG_FLAG: '{{if eq (.ARCH | default ARCH) "amd64"}}AMD64{{else}}ARM64{{end}}'
       ARCHIVE: '{{.BIN_DIR}}/{{.APP_NAME}}-desktop-windows-{{.ARCH}}-{{.VERSION}}.exe'
 
